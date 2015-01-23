@@ -1,0 +1,646 @@
+<html>
+
+<head></head>
+<style>
+	* {
+		cursor: default;
+		transition: all 00s;
+	}
+	.red {
+		background-color: rgba(255, 0, 0, 0.2);
+	}
+	body {
+		background-color: #6d695c;
+		background-image: repeating-linear-gradient(120deg, rgba(255, 255, 255, .1), rgba(255, 255, 255, .1) 1px, transparent 1px, transparent 60px), repeating-linear-gradient(60deg, rgba(255, 255, 255, .1), rgba(255, 255, 255, .1) 1px, transparent 1px, transparent 60px), linear-gradient(60deg, rgba(0, 0, 0, .1) 25%, transparent 25%, transparent 75%, rgba(0, 0, 0, .1) 75%, rgba(0, 0, 0, .1)), linear-gradient(120deg, rgba(0, 0, 0, .1) 25%, transparent 25%, transparent 75%, rgba(0, 0, 0, .1) 75%, rgba(0, 0, 0, .1));
+		background-size: 70px 120px;
+	}
+	.found input {
+		color: #76F !important;
+	}
+	.tablero {
+		background-color: white;
+		display: block;
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		width: 500px;
+		height: 480px;
+		margin-top: -250px;
+		margin-left: -250px;
+		box-shadow: 0px 0px 10px #000;
+		display: flex;
+		flex-wrap: wrap;
+		align-items: flex-start;
+		justify-content: flex-start;
+		align-content: stretch;
+	}
+	.minigrid {
+		position: absolute;
+		background-color: transparent;
+		width: 100%;
+		height: 100%;
+		top: 0%;
+		left: 0%;
+		z-index: 100;
+		outline: none;
+		display: flex;
+		flex-wrap: wrap;
+	}
+	.minigrid span {
+		box-shadow: 0px 0px 2px #CCC;
+		flex: 1 1 33%;
+		font-size: 8px;
+		transition: all 0.5s;
+		display: inline-flex;
+		align-content: center;
+		justify-content: center;
+		align-items: center;
+		text-align: center;
+		position: relative;
+	}
+	.found .minigrid span,
+	.base .minigrid span {
+		display: none;
+	}
+	.set .minigrid span,
+	.base .minigrid span {
+		display: none;
+	}
+	.minigrid:hover {
+		z-index: 10;
+	}
+	.minigrid span:hover {
+		transform: scale(1.7);
+		background-color: black;
+		color: white;
+		z-index: 10;
+		cursor: crosshair;
+	}
+	.tablero input {
+		outline: none;
+		border: none;
+		z-index: 1;
+		background-color: transparent;
+		text-align: center;
+		font-size: 3em;
+		color: #333;
+	}
+	.tablero>div {
+		border-right: 1px dotted #333;
+		border-bottom: 1px dotted #333;
+		flex: 1 1 10.7%;
+		height: 10.7%;
+		display: inline-flex;
+		align-content: center;
+		justify-content: center;
+		align-items: center;
+		text-align: center;
+		position: relative;
+	}
+	.tablero>div.c3,
+	.tablero>div.c6 {
+		border-right-width: 2px;
+		border-right-color: blue;
+		border-right-style: solid;
+	}
+	.tablero>div.r3,
+	.tablero>div.r6 {
+		border-bottom-color: blue;
+		border-bottom-width: 2px;
+		border-bottom-style: solid;
+	}
+	.tablero>div.c9 {
+		border-right: none;
+	}
+	.tablero>div.r9 {
+		border-bottom: none;
+	}
+	.speed {
+		position: absolute;
+		top: 3%;
+		font-size: 28px;
+		padding: 5px;
+		border-radius: 2px;
+		border: none;
+		outline: none;
+		text-align: center;
+		left: 50%;
+		margin-left: -250px;
+		width: 100px;
+		display: inline-block;
+		box-shadow: 0px 0px 10px #000;
+	}
+</style>
+
+<body>
+	<script src="/jquery.js"></script>
+	<script>
+		var prob
+		var css = true;
+		var valuefound = 0;
+		var operationStack = [];
+		var celda = function (f, c, s) {
+			this.id = f + "," + c + " : " + s;
+			this.f = f;
+			this.c = c;
+			this.s = s;
+			var onpudate = null;
+			var jobj = null;
+			this.p = [];
+			var dato = 0;
+			for (var i = 1; i <= 9; i++) {
+				this.p[i.toString()] = 1 / 9 * 100;
+				/*Object.defineProperty(this.p,i.toString(),{
+						get:function(){
+							return i.toString();
+						},
+						set:function(val){
+							this[i.toString()] = 0;
+						}
+					});*/
+			}
+			Object.defineProperty(this, 'dato', {
+				get: function () {
+					return dato;
+				},
+				set: function (val) {
+					if (dato == val) return;
+					if (dato != 0) {
+						for (var i in this.p) {
+							this.p[i] = 0;
+						}
+						this.p[dato.toString()] = 1 / 9 * 9;
+					}
+					valuefound++;
+					dato = val;
+					//onpudate(f,c,s,dato);
+					//this.recalculate();
+					if (val != 0) jobj.parent().find('span').html('');
+				}
+			});
+			this.assoc = function (obj) {
+				jobj = obj.find('input');
+				//jobj.attr('contenteditable',true);
+				var self = this;
+				jobj.on('blur', function () {
+					var val = $(this).val();
+					self.dato = val | 0;
+				});
+				var grid = $('<div class="minigrid">');
+				for (var i = 0; i < 9; i++) {
+					grid.append($('<span>'));
+				}
+				jobj.parent().append(grid);
+			}
+			Object.defineProperty(this, '$', {
+				get: function () {
+					return jobj;
+				}
+			});
+			this.onUpdate = function (fn) {
+				onpudate = fn;
+			}
+			this.not = function (val) {
+				this.p[val] = 0;
+			}
+			this.recalculate = function () {
+				if (this.dato > 0 && this.dato < 10) return;
+				var n = 0;
+				for (var i in this.p) {
+					if (this.p[i] != 0) {
+						n++;
+					}
+				}
+				for (var i in this.p) {
+					if (this.p[i] != 0) {
+						this.p[i] = 1 / n;
+					}
+				}
+				var j = 0;
+				for (var i in this.p) {
+					if (this.p[i] != 0) {
+						this.p[i] = Math.round(1 / n * 10000) / 100;
+					}
+					jobj.parent().find('div span').eq(j).html(this.p[i]);
+					j++;
+				}
+
+
+			}
+		}
+		var board = function () {
+			var self = this;
+			this.fila = [];
+			this.columna = [];
+			this.cuadro = [];
+			this.recalculate = function () {
+				for (var i in self.cuadro) {
+					for (var j in self.cuadro[i]) {
+						self.cuadro[i][j].recalculate();
+					}
+				}
+			}
+			this.update = function (f, c, s, val) {
+				//Reset Stats
+				for (var i in self.cuadro) {
+					for (var j in self.cuadro[i]) {
+						for (var k in self.cuadro[i][j].p) {
+							self.cuadro[i][j].p[k] = 1 / (9 * 9);
+						}
+					}
+				}
+
+				//Excluve knwon values basic method
+
+
+				for (var i in self.cuadro) {
+					for (var j in self.cuadro[i]) {
+						var cell = self.cuadro[i][j];
+						if (cell.dato > 0) {
+							operationStack.push({
+								fn: function (cell, board) {
+									if (css) $('*').removeClass('red');
+									if (css) $(".f" + cell.f).addClass('red');
+									for (var k = 0; k < 9; k++) {
+										board.fila[cell.f][k].not(cell.dato);
+									}
+								},
+								cell: cell
+							});
+							operationStack.push({
+								fn: function (cell, board) {
+									if (css) $('*').removeClass('red');
+									if (css) $(".c" + cell.c).addClass('red');
+									for (var k = 0; k < 9; k++) {
+										board.columna[cell.c][k].not(cell.dato);
+									}
+								},
+								cell: cell
+							});
+							operationStack.push({
+								fn: function (cell, board) {
+									if (css) $('*').removeClass('red');
+									if (css) $(".s" + cell.s).addClass('red');
+									for (var k = 0; k < 9; k++) {
+										board.cuadro[cell.s][k].not(cell.dato);
+									}
+								},
+								cell: cell
+							});
+							/*for(var k in cell.p){cell.p[k]=0;}
+								for (var k=0; k<9; k++ ){
+									self.fila[cell.f][k].not(cell.dato);	
+									self.columna[cell.c][k].not(cell.dato);
+									self.cuadro[cell.s][k].not(cell.dato);
+								}*/
+						}
+					}
+				}
+
+				function detectColumns(c_gr, cn) {
+					console.log(".::Cuadrant::." + cn)
+					var unics = [];
+					for (var i = 0; i < 3; i++) {
+						var prob = [];
+						for (var j = 1; j <= 9; j++) {
+							var p = Math.floor(Math.round((c_gr[i].p[j] + c_gr[i + 3].p[j] + c_gr[i + 6].p[j]) * 10) / 1000);
+							if (p) {
+								unics[j.toString()] = c_gr[i].c;
+								prob[j.toString()] = p;
+							}
+						}
+					}
+
+					var AC = [];
+					var cs = cn * 1;
+					for (var i in unics) {
+						console.log("\tColumn: " + unics[i] + " not " + i);
+						for (var j = 1; j <= 9; j++) {
+							if (!(j >= cs && j <= cs + 2)) {
+								console.log("\t\tOn " + (j - 1));
+								self.columna[unics[i]][j - 1].not(i * 1);
+								AC[self.columna[unics[i]][j - 1].s] = 1;
+							}
+						}
+					}
+					console.log(unics);
+					for (var i in unics) {
+						console.log("\tArea: " + cn + " not " + i);
+						var l = (unics[i] * 1 - 1) % 3 + 1;
+						for (var j = 1; j <= 9; j++) {
+							if (!(j == l || j == l + 3 || j == l + 6)) {
+								console.log(unics[i] + " " + l + "\t\tOn: " + (j - 1));
+								self.cuadro[cn][j - 1].not(i * 1);
+								AC[self.cuadro[cn][j - 1].s] = 1;
+							}
+						}
+					}
+
+					for (var i in AC) {
+						for (var j = 0; j < 9; j++) {
+							self.cuadro[i][j].recalculate();
+						}
+					}
+
+				}
+
+				function detectRows(c_gr, cn) {
+					console.log(".::Cuadrant::." + cn)
+					var unics = [];
+					for (var i = 0; i < 9; i += 3) {
+						var prob = [];
+						for (var j = 1; j <= 9; j++) {
+							var p = Math.floor(Math.round((c_gr[i].p[j] + c_gr[i + 1].p[j] + c_gr[i + 2].p[j]) * 10) / 1000);
+							if (p) {
+								unics[j.toString()] = c_gr[i].f;
+								prob[j.toString()] = p;
+							}
+						}
+					}
+					var AC = [];
+					var cs = ((cn * 1 - 1) % 3) * 3 + 1;
+					for (var i in unics) {
+						console.log("\tRow: " + unics[i] + " not " + i);
+						for (var j = 1; j <= 9; j++) {
+							if (!(j >= cs && j <= cs + 2)) {
+								console.log("\t\tOn " + (j - 1));
+								self.fila[unics[i]][j - 1].not(i * 1);
+								AC[self.fila[unics[i]][j - 1].s] = 1;
+							}
+						}
+					}
+
+					for (var i in unics) {
+						console.log("\tArea: " + cn + " not " + i);
+						var l = (unics[i] * 1 - 1) % 3 * 3 + 1;
+						for (var j = 1; j <= 9; j++) {
+							if (!(j >= l && j <= l + 2)) {
+								console.log("\t\tOn: " + (j - 1));
+								self.cuadro[cn][j - 1].not(i * 1);
+								AC[self.cuadro[cn][j - 1].s] = 1;
+							}
+						}
+					}
+					for (var i in AC) {
+						for (var j = 0; j < 9; j++) {
+							self.cuadro[i][j].recalculate();
+						}
+					}
+
+				}
+
+				function squareENT(c_gr, cn) {
+					//console.log(".::Cuadrant::."+cn)
+					var p = [];
+					for (var j = 1; j <= 9; j++) {
+						p[j] = [];
+						for (var i in c_gr) {
+							if (c_gr[i].p[j] > 0) {
+								//Look for who is doing this mess
+								if (c_gr[i].dato > 0 && c_gr[i].dato <= 9) {
+									c_gr[i].p[j] = 0;
+								} else {
+									p[j].push(i * 1);
+								}
+							}
+						}
+					}
+					//console.log(p);
+					for (var i in p) {
+						for (var j in p[i]) {
+							var cell = self.cuadro[cn][p[i][j]];
+							var prob = Math.round(1 / p[i].length * 10000) / 100;
+							if (prob == 100) {
+								for (var k = 1; k <= 9; k++) {
+									self.cuadro[cn][p[i][j]].p[k] = 0;
+								}
+								self.cuadro[cn][p[i][j]].p[i] = prob;
+								operationStack.push({
+									fn: function (cell, board) {
+										if (css) $('*').removeClass('red');
+										if (css) cell[0].$.parent().addClass('red');
+										cell[0].dato = cell[1] * 1;
+										cell[0].$.parent().find('input').val(cell[1] * 1);
+										if (css) $('*').removeClass('red');
+										if (css) cell[0].$.parent().addClass('found');
+										//$(".s"+cell[0][0].s).addClass('red');
+										//squareENT(cell[0],cell[1]);
+									},
+									cell: [self.cuadro[cn][p[i][j]], i]
+								});
+							}
+							//console.log(i,prob,j)
+							self.cuadro[cn][p[i][j]].recalculate();
+
+						}
+					}
+
+
+					//console.log("===============");
+				}
+
+				/*//Recalculate probs
+					for( var i in self.cuadro){
+						for(var j in self.cuadro[i]){
+							self.cuadro[i][j].recalculate();
+						}
+					}
+					*/
+				//Advanced Methods
+				//for(var r=0;r<3;r++)
+				for (var i in self.cuadro) {
+					var cuadrant = self.cuadro[i];
+					operationStack.push({
+						fn: function (cell, board) {
+							if (css) $('*').removeClass('red');
+							if (css) $(".s" + cell[0][0].s).addClass('red');
+							squareENT(cell[0], cell[1]);
+
+						},
+						cell: [cuadrant, i]
+					});
+					//Detect Rows
+					//squareENT(cuadrant,i);
+					//detectRows(cuadrant,i);
+					//detectColumns(cuadrant,i);
+
+				}
+			}
+
+			this.addCell = function (cell, f, c, s) {
+				cell.onUpdate(this.update);
+				this.fila[f.toString()].push(cell);
+				this.columna[c.toString()].push(cell);
+				this.cuadro[s.toString()].push(cell);
+			}
+
+			for (var i = 1; i <= 9; i++) {
+				this.fila[i.toString()] = [];
+				this.columna[i.toString()] = [];
+				this.cuadro[i.toString()] = [];
+			}
+			this.st = function (y, x, val) {
+				if (val != '') $(".f" + y + ".c" + x).addClass('base');
+				$(".f" + y + ".c" + x).find('input').val(val);
+				$(".f" + y + ".c" + x).find('input').focus();
+				$(".f" + y + ".c" + x).find('input').blur();
+			}
+		}
+
+		function setup(t) {
+			var cell;
+			var a = 0;
+			var s = 0;
+			var tab = new board();
+			for (var i = 0; i < 9; i++) {
+				var sy = (i + 1) % 3;
+				if (sy == 1) a = i + 1;
+				var s = a;
+				for (var j = 0; j < 9; j++) {
+					var f = (i + 1);
+					var c = (j + 1);
+					var sx = (j + 1) % 3;
+					var _c = new celda(f, c, s);
+					cell = $('<div><input></div>');
+					cell.addClass("f" + f);
+					cell.addClass("c" + c);
+					cell.addClass("s" + s);
+					_c.assoc(cell);
+					tab.addCell(_c, f, c, s);
+					if (sx == 0) {
+						s++;
+					}
+					cell.appendTo(t);
+				}
+
+			}
+			$(".minigrid").click(function () {
+				$(this).parent().find('input').focus();
+			});
+			//console.log(tab.fila["1"].p);
+			//console.log(tab.columna["1"].p);
+			return tab;
+		}
+	</script>
+
+	<script>
+		function tab1() {
+			sd.st(1, 1, 2);
+			sd.st(1, 2, 3);
+			sd.st(1, 3, 1);
+			sd.st(1, 4, '');
+			sd.st(1, 5, 4);
+			sd.st(1, 6, 9);
+			sd.st(1, 7, 5);
+			sd.st(1, 8, 6);
+			sd.st(1, 9, 7);
+			sd.st(2, 1, 4);
+			sd.st(2, 2, 6);
+			sd.st(2, 3, '');
+			sd.st(2, 4, 3);
+			sd.st(2, 5, 5);
+			sd.st(2, 6, 7);
+			sd.st(2, 7, 2);
+			sd.st(2, 8, '');
+			sd.st(2, 9, 9);
+			sd.st(3, 1, '');
+			sd.st(3, 2, '');
+			sd.st(3, 3, 9);
+			sd.st(3, 4, '');
+			sd.st(3, 5, '');
+			sd.st(3, 6, '');
+			sd.st(3, 7, '');
+			sd.st(3, 8, 4);
+			sd.st(3, 9, 3);
+
+			sd.st(4, 1, 7);
+			sd.st(4, 2, 1);
+			sd.st(4, 3, 6);
+			sd.st(4, 4, '');
+			sd.st(4, 5, '');
+			sd.st(4, 6, 3);
+			sd.st(4, 7, 9);
+			sd.st(4, 8, 5);
+			sd.st(4, 9, '');
+			sd.st(5, 1, 9);
+			sd.st(5, 2, 8);
+			sd.st(5, 3, 2);
+			sd.st(5, 4, 7);
+			sd.st(5, 5, '');
+			sd.st(5, 6, 5);
+			sd.st(5, 7, 4);
+			sd.st(5, 8, 3);
+			sd.st(5, 9, 1);
+			sd.st(6, 1, '');
+			sd.st(6, 2, 5);
+			sd.st(6, 3, 4);
+			sd.st(6, 4, 9);
+			sd.st(6, 5, '');
+			sd.st(6, 6, '');
+			sd.st(6, 7, 7);
+			sd.st(6, 8, 8);
+			sd.st(6, 9, 6);
+
+			sd.st(7, 1, 6);
+			sd.st(7, 2, 2);
+			sd.st(7, 3, '');
+			sd.st(7, 4, '');
+			sd.st(7, 5, '');
+			sd.st(7, 6, '');
+			sd.st(7, 7, 1);
+			sd.st(7, 8, '');
+			sd.st(7, 9, '');
+			sd.st(8, 1, 1);
+			sd.st(8, 2, '');
+			sd.st(8, 3, 5);
+			sd.st(8, 4, 6);
+			sd.st(8, 5, 7);
+			sd.st(8, 6, 4);
+			sd.st(8, 7, '');
+			sd.st(8, 8, 2);
+			sd.st(8, 9, 8);
+			sd.st(9, 1, 8);
+			sd.st(9, 2, 4);
+			sd.st(9, 3, 7);
+			sd.st(9, 4, 2);
+			sd.st(9, 5, 3);
+			sd.st(9, 6, '');
+			sd.st(9, 7, 6);
+			sd.st(9, 8, 9);
+			sd.st(9, 9, 5);
+		}
+	</script>
+
+	<script>
+		$(function () {
+			var sd
+			var tablero = $('<section/>').addClass('tablero').appendTo($('body'));
+			sd = setup(tablero);
+			tab1();
+			var start = $('<button>').appendTo($('body')).html("Resolver");
+			var speed = $('<input size="3" maxlength="3">').addClass('speed').appendTo($('body'));
+			var id = 0;
+			start.click(function () {
+				valuefound = 0;
+				operationStack = [];
+				sd.update();
+				operationStack.reverse();
+				id = setInterval(function () {
+					if (operationStack.length == 0) {
+						clearInterval(id);
+						if (css) $('*').removeClass('red');
+						if (valuefound > 0) {
+							start.click();
+						}
+						return;
+					}
+					var op = operationStack.pop();
+					op.fn(op.cell, sd);
+					sd.recalculate();
+				}, $(".speed").val());
+			});
+		})
+	</script>
+</body>
+
+</html>
